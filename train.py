@@ -16,7 +16,7 @@ def next_batch(inputs, targets, batchSize):
 
 # specify our batch size, number of epochs, and learning rate
 BATCH_SIZE = 64
-EPOCHS = 200
+EPOCHS = 2
 LR = 1e-3
 # determine the device we will be using for training
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -166,5 +166,5 @@ with torch.no_grad():
 
 	#display model progress on the current test batch
 	valTemplate = " val loss: {:.3f} val accuracy: {:.3f} val precision: {:.3f} val recall: {:.3f}"
-	print(valTemplate.format(valLoss,valAcc/len(valY), valPrecision, valRecall))
+	print(valTemplate.format(valLoss,valAcc/len(valY), valPrecision/len(valY), valRecall/len(valY)))
 	print("")
