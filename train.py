@@ -16,7 +16,7 @@ def next_batch(inputs, targets, batchSize):
 
 # specify our batch size, number of epochs, and learning rate
 BATCH_SIZE = 64
-EPOCHS = 50
+EPOCHS = 200
 LR = 1e-3
 # determine the device we will be using for training
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -47,6 +47,24 @@ print(mlp)
 opt = SGD(mlp.parameters(), lr=LR)
 lossFunc = nn.BCEWithLogitsLoss(reduction="mean")
 
+
+def get_info(predictions, batchY):
+	truePos = (torch.logical_and((predictions-.5)>0, (batchY-.5) > 0)).sum().item()
+	falseNeg = (torch.logical_and((predictions-.5)<0, (batchY-.5) > 0)).sum().item()
+	totRetr = ((predictions-.5) > 0).sum().item()
+	if totRetr == 0:
+		precision = 0
+	else:
+		precision = (truePos/totRetr)* batchY.size(0)
+	if (truePos+falseNeg) == 0:
+		recall = 0
+	else:
+		recall = (truePos/(truePos+falseNeg))* batchY.size(0)
+	
+	accuracy = ((predictions-.5) * (batchY-.5) > 0).sum().item()
+
+	return precision, recall, accuracy
+
 from math import isnan
 # create a template to summarize current training progress
 trainTemplate = "epoch: {} test loss: {:.3f} test accuracy: {:.3f}"
@@ -56,11 +74,11 @@ for epoch in range(0, EPOCHS):
 	print("[INFO] epoch: {}...".format(epoch + 1))
 	trainLoss = 0
 	trainAcc = 0
+	trainPrecision=0
+	trainRecall=0
 	samples = 0
-	precision = 0
-	recall = 0
+	
 	mlp.train()
-	chk = True
 	# loop over the current batch of data
 	for (batchX, batchY) in next_batch(trainX, trainY, BATCH_SIZE):
 		# flash data to the current device, run it through our
@@ -78,34 +96,32 @@ for epoch in range(0, EPOCHS):
 		# update training loss, accuracy, and the number of samples
 		# visited
 
-
-
-		# precision += ((((predictions-.5) * (batchY-.5) > 0).sum().item() + 0.001)/(((predictions-.5) < 0).sum().item()+ 0.001))* batchY.size(0)
-		
-		# recall += ((((predictions-.5) * (batchY-.5) > 0).sum().item())/((batchY-.5) < 0).sum().item())* batchY.size(0)
 		trainLoss += loss.item() * batchY.size(0)
-		trainAcc += ((predictions-.5) * (batchY-.5) > 0).sum().item()
+		p,r,a = get_info(predictions,batchY)
+		trainPrecision += p
+		trainRecall += r
+		trainAcc += a
 		samples += batchY.size(0)
-		if chk:
-			#breakpoint()
-			chk = False
+
 	#breakpoint()
 	# display model progress on the current training batch
 	trainTemplate = "epoch: {} train loss: {:.3f} train accuracy: {:.3f} train precision: {:.3f} train recall: {:.3f}"
 	print(trainTemplate.format(epoch + 1, (trainLoss /samples ),
-		(trainAcc / samples), (precision/samples), (recall/samples)))
+		(trainAcc / samples), (trainPrecision/samples), (trainRecall/samples)))
 	
 
 	# initialize tracker variables for testing, then set our model to
 	# evaluation mode
 	testLoss = 0
 	testAcc = 0
+	testPrecision=0
+	testRecall=0
 	samples = 0
+	
 	mlp.eval()
 	# initialize a no-gradient context
 	with torch.no_grad():
 		# loop over the current batch of test data
-		chk = True
 		for (batchX, batchY) in next_batch(testX, testY, BATCH_SIZE):
 			# flash the data to the current device
 			(batchX, batchY) = (batchX.to(DEVICE), batchY.to(DEVICE))
@@ -114,36 +130,41 @@ for epoch in range(0, EPOCHS):
 			loss = lossFunc(predictions, batchY)
 			# update test loss, accuracy, and the number of
 			# samples visited
+
 			testLoss += loss.item() * batchY.size(0)
-			testAcc += ((predictions-.5) * (batchY-.5) > 0).sum().item()
+			p,r,a = get_info(predictions,batchY)
+			testPrecision += p
+			testRecall += r
+			testAcc += a
 			samples += batchY.size(0)
-			if chk:
-				#breakpoint()
-				chk = False
-			#breakpoint()
+
 		
 		#display model progress on the current test batch
-		testTemplate = "epoch: {} test loss: {:.3f} test accuracy: {:.3f}"
+		testTemplate = "epoch: {} test loss: {:.3f} test accuracy: {:.3f} test precision: {:.3f} test recall: {:.3f}"
 		print(testTemplate.format(epoch + 1, (testLoss / samples),
-			(testAcc / samples)))
+			(testAcc / samples), (testPrecision/samples), (testRecall/samples)))
 		print("")
 
-print("SINGLE TRY")
-################################
+print("[VALIDATION]")
+
 with torch.no_grad():
+	# flash the data to the current device
+	(batchX, batchY) = (valX.to(DEVICE), valY.to(DEVICE))
+	# run data through our model and calculate loss
+	predictions = mlp(batchX)
+	loss = lossFunc(predictions, batchY)
+	# update test loss, accuracy, and the number of
+	# samples visited
 
-		# flash the data to the current device
-		(batchX, batchY) = (valX.to(DEVICE), valY.to(DEVICE))
-		# run data through our model and calculate loss
-		predictions = mlp(batchX)
-		loss = lossFunc(predictions, batchY)
-		# update test loss, accuracy, and the number of
-		# samples visited
-		valLoss = loss.item() 
-		valAcc = ((predictions-.5) * (batchY-.5) > 0).sum().item()
-		
-		#display model progress on the current test batch
-		valTemplate = " val loss: {:.3f} val accuracy: {:.3f}"
-		print(valTemplate.format(valLoss,valAcc/len(valY)))
-		print("")
-##############################
+	truePos = (torch.logical_and((predictions-.5)>0, (batchY-.5) > 0)).sum().item()
+	falseNeg = (torch.logical_and((predictions-.5)<0, (batchY-.5) > 0)).sum().item()
+	totRetr = ((predictions-.5) > 0).sum().item()
+	
+
+	valLoss = loss.item() 
+	valPrecision,valRecall,valAcc = get_info(predictions,batchY)
+
+	#display model progress on the current test batch
+	valTemplate = " val loss: {:.3f} val accuracy: {:.3f} val precision: {:.3f} val recall: {:.3f}"
+	print(valTemplate.format(valLoss,valAcc/len(valY), valPrecision, valRecall))
+	print("")
