@@ -16,7 +16,7 @@ def next_batch(inputs, targets, batchSize):
 
 # specify our batch size, number of epochs, and learning rate
 BATCH_SIZE = 64
-EPOCHS = 2
+EPOCHS = 300
 LR = 1e-3
 # determine the device we will be using for training
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -27,7 +27,7 @@ raw_data = load_data(data_path)
 ttdata = raw_data[:round(len(raw_data)-len(raw_data)*.10)]
 valdata = raw_data[round(len(raw_data)-len(raw_data)*.10):]
 X,y = polish_data(ttdata)
-X,y = balance_data(X,y)
+#X,y = balance_data(X,y)
 trainX, testX, trainY, testY = split_train_test(X,y,test_size=0.015)
 trainX = torch.from_numpy(trainX).float()
 testX = torch.from_numpy(testX).float()
@@ -45,7 +45,9 @@ mlp = mlp.get_training_model().to(DEVICE)
 print(mlp)
 # initialize optimizer and loss function
 opt = SGD(mlp.parameters(), lr=LR)
-lossFunc = nn.BCEWithLogitsLoss(reduction="mean")
+lossFunc = nn.BCEWithLogitsLoss(reduction="mean", pos_weight=torch.tensor([11]))
+#lossFunc = nn.BCEWithLogitsLoss(reduction="mean", pos_weight=torch.tensor([11])) 	with pos_weight and no manual balancing we get	
+																				#	similar results but more quickly
 
 
 def get_info(predictions, batchY):
@@ -65,7 +67,6 @@ def get_info(predictions, batchY):
 
 	return precision, recall, accuracy
 
-from math import isnan
 # create a template to summarize current training progress
 trainTemplate = "epoch: {} test loss: {:.3f} test accuracy: {:.3f}"
 # loop through the epochs
