@@ -46,9 +46,9 @@ print(mlp)
 # initialize optimizer and loss function
 opt = SGD(mlp.parameters(), lr=LR)
 lossFunc = nn.BCEWithLogitsLoss(reduction="mean", pos_weight=torch.tensor([11]))
-#lossFunc = nn.BCEWithLogitsLoss(reduction="mean", pos_weight=torch.tensor([11])) 	with pos_weight and no manual balancing we get	
-																				#	similar results but more quickly
-
+#lossFunc = nn.BCEWithLogitsLoss(reduction="mean") 		with pos_weight and no manual balancing we get	
+													#	similar results but more quickly
+													#	val loss: 0.512 val accuracy: 0.962 val precision: 0.834 val recall: 0.701
 
 def get_info(predictions, batchY):
 	truePos = (torch.logical_and((predictions-.5)>0, (batchY-.5) > 0)).sum().item()
