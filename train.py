@@ -86,6 +86,7 @@ for epoch in range(0, EPOCHS):
 		# model, and calculate loss
 		(batchX, batchY) = (batchX.to(DEVICE), batchY.to(DEVICE))
 		predictions = mlp(batchX)
+		breakpoint()
 		#print(predictions)
 		loss = lossFunc(predictions, batchY)
 		#breakpoint()
